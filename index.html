@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title></title>
+    <script src="./d3.js"></script>
+    <script src="./parseToMergeNode.js"></script>
+    <style></style>
+  </head>
+
+  <body>
+    <div>
+      <h3>业务逻辑</h3>
+      <div>B叶子节点和C叶子节点有相同的节点，需要合并他们</div>
+    </div>
+    <svg class="chart"></svg>
+
+    <script>
+      const data = {
+        name: "root",
+        children: [
+          {
+            name: "二级节点1",
+            children: [
+              {
+                name: "A",
+                value: "叶子节点",
+                children: [
+                  {
+                    name: "lucy",
+                    value: "same_root",
+                    mergeId: "223344",
+                  },
+                ],
+              },
+              {
+                name: "B",
+                value: "叶子节点",
+                children: [
+                  {
+                    name: "kevin",
+                    value: "same_root",
+                    mergeId: "556677",
+                  },
+                ],
+              },
+              {
+                name: "C",
+                value: "叶子节点",
+              },
+            ],
+          },
+          {
+            name: "二级节点2",
+            children: [
+              {
+                name: "C",
+                value: "叶子节点",
+              },
+              {
+                name: "C",
+                value: "叶子节点",
+                children: [
+                  {
+                    name: "lucy",
+                    value: "same_root",
+                    mergeId: "223344",
+                  },
+                ],
+              },
+              {
+                name: "C",
+                value: "叶子节点",
+                children: [
+                  {
+                    name: "kevin",
+                    value: "same_root",
+                    mergeId: "556677",
+                  },
+                ],
+              },
+              {
+                name: "D",
+                value: "叶子节点",
+              },
+            ],
+          },
+        ],
+      };
+
+      const width = 1366;
+      const height = 580;
+
+      const svg = d3
+        .select(".chart")
+        .attr("width", width)
+        .attr("height", height);
+
+      /** 在<svg>下新增了一个g节点 */
+      const g = svg.append("g").attr("transform", "translate(40, 20)");
+
+      /**
+       * 将数据结构化, 返回后的node节点及其后代均有如下属性
+       *    node.data,
+       *    node.depth,
+       *    node.height,
+       *    node.parent,
+       *    node.children,
+       *    node.value
+       */
+      const hierarchyData = d3.hierarchy(data);
+      console.log("——————d3.hierarchy(data)——————");
+      console.log(hierarchyData);
+
+      //d3.tree()返回tree layout,后续链式写法对layout进行配置
+      const treeLayout = d3
+        .tree()
+        .size([width, height - 30])
+        .separation((a, b) => {
+          return a.parent === b.parent ? 1 : 2;
+        });
+      console.log("——————treeLayout——————");
+      console.log(treeLayout);
+
+      //将数据扔进layout,获取更易于布局的数据nodesData, 相对hierarchyData, 所有数据加上了.x,.y属/
+
+      const nodesData = treeLayout(hierarchyData);
+      console.log("——————nodesData——————");
+      console.log(nodesData);
+
+      const needToMergeNodesObj = parseNeedToMergeTree(nodesData);
+
+      // const totalWidth = calculateNodesWidth(nodesData);
+
+      const centerX = centerNodeX(nodesData);
+
+      const res = handleNodePosition(needToMergeNodesObj, centerX);
+
+      console.log("🚀 ~ file: index.html ~ line 132 ~ res", res);
+
+      console.log("——————节点展开，由于是画link，所以去除root节点");
+      const links = g
+        .selectAll(".links")
+        .data(nodesData.descendants().slice(1))
+        .enter()
+        .append("path")
+        .attr("fill", "none")
+        .attr("stroke", "#313131")
+        .attr("stroke-width", 2)
+        .attr("d", (d) => {
+          return `
+                M${d.x},${d.y}
+                C${d.x},${(d.y + d.parent.y) / 2}
+                ${d.parent.x},${(d.y + d.parent.y) / 2.5}
+                ${d.parent.x},${d.parent.y}`;
+        });
+
+      const nodes = g
+        .selectAll(".node")
+        .data(nodesData.descendants())
+        .enter()
+        .append("g")
+        .attr("transform", (d) => {
+          return `translate(${d.x}, ${d.y})`;
+        });
+
+      /**
+       * 画节点的图
+       *  1. 画圆圈
+       *  2. 加文字
+       */
+
+      // 1. 画圆
+      nodes.append("circle").style("fill", "#c03027").attr("r", 10);
+
+      //2. 插入文字
+      nodes
+        .append("text")
+        .attr("dx", ".9em")
+        .text((d) => {
+          return d.data.name;
+        });
+    </script>
+  </body>
+</html>
